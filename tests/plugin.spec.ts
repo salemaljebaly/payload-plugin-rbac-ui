@@ -57,4 +57,75 @@ describe('rbacUIPlugin', () => {
       'rbacUIPlugin could not find roles collection: "roles"',
     )
   })
+
+  it('auto-discovers collection and global permissions', async () => {
+    const plugin = rbacUIPlugin({ autoDiscover: true })
+
+    const config = (await plugin({
+      collections: [
+        { slug: 'roles', fields: [{ name: 'permissions', type: 'json' }] },
+        { slug: 'posts', fields: [] },
+      ],
+      globals: [{ slug: 'site-settings', fields: [] }],
+    } as unknown as Config)) as Config
+
+    const rolesCollection = config.collections?.find((collection) => collection.slug === 'roles')
+    const permissionsField = rolesCollection?.fields?.find(
+      (field) => 'name' in field && field.name === 'permissions',
+    ) as { admin?: { custom?: { rbac?: { permissionGroups?: typeof permissionGroups } } } } | undefined
+
+    const groups = permissionsField?.admin?.custom?.rbac?.permissionGroups ?? []
+    const postGroup = groups.find((group) => group.label === 'Post')
+    const globalGroup = groups.find((group) => group.label === 'Global SiteSetting')
+
+    expect(postGroup).toBeDefined()
+    expect(postGroup?.permissions.map((item) => item.permission)).toEqual([
+      'Create:Post',
+      'Read:Post',
+      'Update:Post',
+      'Delete:Post',
+    ])
+
+    expect(globalGroup).toBeDefined()
+    expect(globalGroup?.permissions.map((item) => item.permission)).toEqual([
+      'Read:Global:SiteSetting',
+      'Update:Global:SiteSetting',
+    ])
+  })
+
+  it('merges auto-discovered and manual permission groups', async () => {
+    const plugin = rbacUIPlugin({
+      autoDiscover: true,
+      permissionGroups: [
+        {
+          label: 'Post',
+          permissions: [
+            { action: 'Publish', description: 'Publish post', permission: 'Publish:Post' },
+          ],
+        },
+      ],
+    })
+
+    const config = (await plugin({
+      collections: [
+        { slug: 'roles', fields: [{ name: 'permissions', type: 'json' }] },
+        { slug: 'posts', fields: [] },
+      ],
+    } as unknown as Config)) as Config
+
+    const rolesCollection = config.collections?.find((collection) => collection.slug === 'roles')
+    const permissionsField = rolesCollection?.fields?.find(
+      (field) => 'name' in field && field.name === 'permissions',
+    ) as { admin?: { custom?: { rbac?: { permissionGroups?: typeof permissionGroups } } } } | undefined
+
+    const groups = permissionsField?.admin?.custom?.rbac?.permissionGroups ?? []
+    const postGroup = groups.find((group) => group.label === 'Post')
+    const permissions = postGroup?.permissions.map((item) => item.permission) ?? []
+
+    expect(permissions).toContain('Create:Post')
+    expect(permissions).toContain('Read:Post')
+    expect(permissions).toContain('Update:Post')
+    expect(permissions).toContain('Delete:Post')
+    expect(permissions).toContain('Publish:Post')
+  })
 })

@@ -1,6 +1,11 @@
 import type { CollectionConfig, Config, Plugin } from 'payload'
 import type { PermissionGroup, RBACUIPluginOptions } from './types'
-import { flattenPermissionGroups, validatePermissionArray } from './lib/permissions'
+import {
+  createAutoPermissionGroups,
+  flattenPermissionGroups,
+  mergePermissionGroups,
+  validatePermissionArray,
+} from './lib/permissions'
 
 const DEFAULT_ROLES_COLLECTION = 'roles'
 const DEFAULT_PERMISSIONS_FIELD = 'permissions'
@@ -17,14 +22,15 @@ const configureRolesCollection = ({
   collection,
   options,
   allowedPermissions,
+  resolvedPermissionGroups,
 }: {
   collection: CollectionConfig
   options: RBACUIPluginOptions
   allowedPermissions: string[]
+  resolvedPermissionGroups: PermissionGroup[]
 }): CollectionConfig => {
   const permissionsFieldName = options.permissionsFieldName ?? DEFAULT_PERMISSIONS_FIELD
   const componentPath = options.customFieldPath ?? DEFAULT_COMPONENT_PATH
-  const permissionGroups = options.permissionGroups
   const fieldDescription = resolveDescription(options.rolesFieldDescription)
 
   const fields = [...(collection.fields ?? [])]
@@ -39,7 +45,7 @@ const configureRolesCollection = ({
       description: fieldDescription,
       custom: {
         rbac: {
-          permissionGroups,
+          permissionGroups: resolvedPermissionGroups,
         },
       },
       components: {
@@ -73,12 +79,7 @@ const configureRolesCollection = ({
 }
 
 export const rbacUIPlugin = (options: RBACUIPluginOptions): Plugin => {
-  if (!options.permissionGroups || options.permissionGroups.length === 0) {
-    throw new Error('rbacUIPlugin requires at least one permission group.')
-  }
-
   const rolesCollectionSlug = options.rolesCollectionSlug ?? DEFAULT_ROLES_COLLECTION
-  const allowedPermissions = flattenPermissionGroups(options.permissionGroups)
 
   return (incomingConfig: Config): Config => {
     const collections = incomingConfig.collections ?? []
@@ -87,6 +88,22 @@ export const rbacUIPlugin = (options: RBACUIPluginOptions): Plugin => {
     if (!hasRolesCollection) {
       throw new Error(`rbacUIPlugin could not find roles collection: "${rolesCollectionSlug}"`)
     }
+
+    const manualPermissionGroups = options.permissionGroups ?? []
+    const autoPermissionGroups = createAutoPermissionGroups({
+      config: incomingConfig,
+      rolesCollectionSlug,
+      autoDiscover: options.autoDiscover,
+    })
+    const resolvedPermissionGroups = mergePermissionGroups(autoPermissionGroups, manualPermissionGroups)
+
+    if (resolvedPermissionGroups.length === 0) {
+      throw new Error(
+        'rbacUIPlugin resolved zero permission groups. Provide permissionGroups or enable autoDiscover.',
+      )
+    }
+
+    const allowedPermissions = flattenPermissionGroups(resolvedPermissionGroups)
 
     return {
       ...incomingConfig,
@@ -97,11 +114,26 @@ export const rbacUIPlugin = (options: RBACUIPluginOptions): Plugin => {
           collection,
           options,
           allowedPermissions,
+          resolvedPermissionGroups,
         })
       }),
     }
   }
 }
 
-export type { PermissionGroup, PermissionItem, RBACUIPluginOptions } from './types'
-export { flattenPermissionGroups, validatePermissionArray } from './lib/permissions'
+export type {
+  AutoDiscoverContext,
+  AutoDiscoverOptions,
+  AutoDiscoverSource,
+  PermissionGroup,
+  PermissionItem,
+  RBACUIPluginOptions,
+} from './types'
+export {
+  createAutoPermissionGroups,
+  defaultGroupLabelFormatter,
+  defaultPermissionFormatter,
+  flattenPermissionGroups,
+  mergePermissionGroups,
+  validatePermissionArray,
+} from './lib/permissions'
