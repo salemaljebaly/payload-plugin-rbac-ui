@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { flattenPermissionGroups, validatePermissionArray } from '../src/lib/permissions'
+import type { Config } from 'payload'
+import { createAutoPermissionGroups, flattenPermissionGroups, validatePermissionArray } from '../src/lib/permissions'
 
 describe('permissions utils', () => {
   it('flattens and de-duplicates permission groups', () => {
@@ -32,5 +33,26 @@ describe('permissions utils', () => {
     const invalidResult = validatePermissionArray(['Read:User', 'Delete:User'], allowed)
     expect(invalidResult).toContain('Invalid permissions found')
     expect(invalidResult).toContain('Delete:User')
+  })
+
+  it('creates auto-discovered permissions with custom formatter', () => {
+    const groups = createAutoPermissionGroups({
+      config: {
+        collections: [{ slug: 'roles', fields: [] }, { slug: 'visit-records', fields: [] }],
+      } as unknown as Config,
+      rolesCollectionSlug: 'roles',
+      autoDiscover: {
+        includeRolesCollection: false,
+        formatPermission: ({ action, slug, source }) => `${source}.${slug}.${action.toLowerCase()}`,
+      },
+    })
+
+    expect(groups).toHaveLength(1)
+    expect(groups[0]?.permissions.map((item) => item.permission)).toEqual([
+      'collection.visit-records.create',
+      'collection.visit-records.read',
+      'collection.visit-records.update',
+      'collection.visit-records.delete',
+    ])
   })
 })
