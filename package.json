@@ -1,0 +1,39 @@
+{
+  "name": "payload-plugin-rbac-ui",
+  "version": "0.1.0",
+  "description": "Reusable RBAC permissions UI and helpers for Payload CMS",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./client": "./src/components/PermissionsMatrixField.tsx",
+    "./types": "./src/types.ts"
+  },
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "peerDependencies": {
+    "payload": "^3.76.1",
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "25.2.3",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "payload": "3.76.1",
+    "typescript": "5.9.3",
+    "vitest": "4.0.18"
+  },
+  "scripts": {
+    "test": "vitest run --config ./vitest.config.mts"
+  },
+  "keywords": [
+    "payload",
+    "payloadcms",
+    "payload-plugin",
+    "rbac",
+    "permissions"
+  ]
+}
