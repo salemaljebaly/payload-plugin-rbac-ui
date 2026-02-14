@@ -1,4 +1,4 @@
-# payload-plugin-rbac-ui
+# @salemaljebaly/payload-plugin-rbac-ui
 
 Reusable RBAC permissions matrix UI for Payload CMS.
 
@@ -12,14 +12,14 @@ Reusable RBAC permissions matrix UI for Payload CMS.
 ## Install
 
 ```bash
-pnpm add payload-plugin-rbac-ui
+pnpm add @salemaljebaly/payload-plugin-rbac-ui
 ```
 
 ## Usage
 
 ```ts
 import { buildConfig } from 'payload'
-import { rbacUIPlugin, type PermissionGroup } from 'payload-plugin-rbac-ui'
+import { rbacUIPlugin, type PermissionGroup } from '@salemaljebaly/payload-plugin-rbac-ui'
 
 const permissionGroups: PermissionGroup[] = [
   {
@@ -74,5 +74,5 @@ Payload docs reference the `payload-plugin` topic for plugin discovery.
 ## Development
 
 ```bash
-pnpm --filter payload-plugin-rbac-ui test
+pnpm test
 ```

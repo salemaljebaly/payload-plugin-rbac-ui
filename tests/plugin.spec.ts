@@ -38,7 +38,7 @@ describe('rbacUIPlugin', () => {
     expect(permissionsField).toBeDefined()
     expect(permissionsField?.type).toBe('json')
     expect((permissionsField as { admin?: { components?: { Field?: string } } }).admin?.components?.Field).toBe(
-      'payload-plugin-rbac-ui/client#PermissionsMatrixField',
+      '@salemaljebaly/payload-plugin-rbac-ui/client#PermissionsMatrixField',
     )
 
     const validate = (permissionsField as { validate?: (value: unknown) => true | string }).validate

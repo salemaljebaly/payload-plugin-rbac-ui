@@ -4,7 +4,7 @@ import { flattenPermissionGroups, validatePermissionArray } from './lib/permissi
 
 const DEFAULT_ROLES_COLLECTION = 'roles'
 const DEFAULT_PERMISSIONS_FIELD = 'permissions'
-const DEFAULT_COMPONENT_PATH = 'payload-plugin-rbac-ui/client#PermissionsMatrixField'
+const DEFAULT_COMPONENT_PATH = '@salemaljebaly/payload-plugin-rbac-ui/client#PermissionsMatrixField'
 
 const resolveDescription = (
   description: RBACUIPluginOptions['rolesFieldDescription'],
