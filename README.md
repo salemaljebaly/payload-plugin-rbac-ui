@@ -15,9 +15,7 @@ RBAC permissions matrix UI for Payload CMS.
 
 ## Screenshot
 
-![Permissions Matrix UI](docs/images/permissions-matrix.png)
-
-Add your screenshot file at `docs/images/permissions-matrix.png`.
+![Permissions Matrix UI](https://raw.githubusercontent.com/salemaljebaly/payload-plugin-rbac-ui/main/docs/images/permissions-matrix.png)
 
 ## Install
 
