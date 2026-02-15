@@ -1,6 +1,6 @@
 {
   "name": "@salemaljebaly/payload-plugin-rbac-ui",
-  "version": "0.3.7",
+  "version": "0.3.8",
   "description": "Reusable RBAC permissions UI and helpers for Payload CMS",
   "license": "MIT",
   "type": "module",
