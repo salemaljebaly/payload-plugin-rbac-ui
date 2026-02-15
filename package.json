@@ -4,6 +4,7 @@
   "description": "Reusable RBAC permissions UI and helpers for Payload CMS",
   "license": "MIT",
   "type": "module",
+  "packageManager": "pnpm@9.15.0",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
