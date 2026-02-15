@@ -37,10 +37,11 @@ Maintainers handle versioning and publish:
 
 ```bash
 pnpm version patch|minor|major
-pnpm publish --access public
 git tag -a vX.Y.Z -m "Release vX.Y.Z"
 git push origin vX.Y.Z
 ```
+
+Publishing is automated via GitHub Actions Trusted Publisher (OIDC) on tag push (`v*`) using `.github/workflows/release.yml`.
 
 ## Questions / Discussion
 
