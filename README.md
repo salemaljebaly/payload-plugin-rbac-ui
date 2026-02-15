@@ -1,14 +1,23 @@
 # @salemaljebaly/payload-plugin-rbac-ui
 
-Reusable RBAC permissions matrix UI for Payload CMS.
+[![npm version](https://img.shields.io/npm/v/@salemaljebaly/payload-plugin-rbac-ui)](https://www.npmjs.com/package/@salemaljebaly/payload-plugin-rbac-ui)
+[![npm downloads](https://img.shields.io/npm/dm/@salemaljebaly/payload-plugin-rbac-ui)](https://www.npmjs.com/package/@salemaljebaly/payload-plugin-rbac-ui)
+[![license](https://img.shields.io/npm/l/@salemaljebaly/payload-plugin-rbac-ui)](./LICENSE)
+
+RBAC permissions matrix UI for Payload CMS.
 
 ## Features
 
-- Adds a grouped checkbox matrix UI for role permissions in Admin.
-- Validates role permissions against a strict allowed list.
-- Keeps role permission UI and server-side validation in sync.
-- Works by enhancing an existing roles collection.
-- Supports auto-discovery from Payload collections and globals.
+- Role permissions UI with grouped checkboxes.
+- Strict permission value validation.
+- Auto-discovery from Payload collections and globals.
+- Supports hybrid mode (auto-discovery + custom permissions).
+
+## Screenshot
+
+![Permissions Matrix UI](docs/images/permissions-matrix.png)
+
+Add your screenshot file at `docs/images/permissions-matrix.png`.
 
 ## Install
 
@@ -16,37 +25,7 @@ Reusable RBAC permissions matrix UI for Payload CMS.
 pnpm add @salemaljebaly/payload-plugin-rbac-ui
 ```
 
-## Usage
-
-```ts
-import { buildConfig } from 'payload'
-import { rbacUIPlugin, type PermissionGroup } from '@salemaljebaly/payload-plugin-rbac-ui'
-
-const permissionGroups: PermissionGroup[] = [
-  {
-    label: 'Posts',
-    permissions: [
-      { action: 'Create', description: 'Create posts', permission: 'Create:Post' },
-      { action: 'Read', description: 'Read posts', permission: 'Read:Post' },
-      { action: 'Update', description: 'Update posts', permission: 'Update:Post' },
-      { action: 'Delete', description: 'Delete posts', permission: 'Delete:Post' },
-    ],
-  },
-]
-
-export default buildConfig({
-  collections: [/* users, roles, etc */],
-  plugins: [
-    rbacUIPlugin({
-      rolesCollectionSlug: 'roles',
-      permissionsFieldName: 'permissions',
-      permissionGroups,
-    }),
-  ],
-})
-```
-
-## Auto-Discovery (Filament-like)
+## Quick Start (Auto-Discover)
 
 ```ts
 import { buildConfig } from 'payload'
@@ -58,65 +37,121 @@ export default buildConfig({
   plugins: [
     rbacUIPlugin({
       rolesCollectionSlug: 'roles',
-      autoDiscover: true, // Generates CRUD for collections + Read/Update for globals
+      autoDiscover: true,
     }),
   ],
 })
 ```
 
-You can also mix auto-discovery with custom manual permissions:
+## Hybrid Example (Auto + Custom)
 
 ```ts
+import { rbacUIPlugin } from '@salemaljebaly/payload-plugin-rbac-ui'
+
 rbacUIPlugin({
   autoDiscover: true,
   permissionGroups: [
     {
-      label: 'Posts',
-      permissions: [{ action: 'Publish', description: 'Publish posts', permission: 'Publish:Post' }],
+      label: 'Post',
+      permissions: [
+        {
+          action: 'Publish',
+          description: 'Publish posts',
+          permission: 'Publish:Post',
+        },
+      ],
     },
   ],
 })
 ```
 
+## Access Enforcement Note
+
+This plugin handles **UI + validation** for role permissions.
+
+Your app still handles **authorization checks** (for example with `hasPermission('Read:Post')` in collection/global access).
+
 ## Options
 
-- `rolesCollectionSlug`: roles collection slug. Default: `roles`
-- `permissionsFieldName`: permissions field name. Default: `permissions`
-- `permissionGroups`: optional manual permission groups (can be combined with auto-discovery).
-- `autoDiscover`: `true` or object config for discovering permissions from collections/globals.
-- `rolesFieldDescription`: custom field description text.
-- `ensurePermissionsField`: if `true`, inserts field when missing. Default: `true`
-- `customFieldPath`: override the client component path.
-- `onConfigureRolesCollection`: final roles collection mutator.
+- `rolesCollectionSlug` (default: `roles`)
+- `permissionsFieldName` (default: `permissions`)
+- `permissionGroups` (optional manual groups)
+- `autoDiscover` (`true` or config object)
+- `rolesFieldDescription`
+- `ensurePermissionsField` (default: `true`)
+- `customFieldPath`
+- `onConfigureRolesCollection`
 
-### `autoDiscover` options
+`autoDiscover` supports:
 
-- `collections`: include collections. Default: `true`
-- `globals`: include globals. Default: `true`
-- `collectionActions`: default `['Create', 'Read', 'Update', 'Delete']`
-- `globalActions`: default `['Read', 'Update']`
-- `includeRolesCollection`: include roles resource. Default: `true`
-- `formatPermission(context)`: customize generated permission string.
-- `formatGroupLabel(context)`: customize group labels.
+- `collections` (default: `true`)
+- `globals` (default: `true`)
+- `collectionActions` (default: `['Create', 'Read', 'Update', 'Delete']`)
+- `globalActions` (default: `['Read', 'Update']`)
+- `includeRolesCollection` (default: `true`)
+- `formatPermission(context)`
+- `formatGroupLabel(context)`
 
-## Best Practices
+## Compatibility
 
-- Keep permission strings stable (`Action:Resource`).
-- Use one shared permission registry for UI, role seeds, and access helpers.
-- Use `overrideAccess: false` whenever you pass `user` in Local API calls.
-- Keep access checks server-side; UI is only convenience.
-
-## Publishing / Official Discovery
-
-To make the plugin discoverable in the Payload ecosystem:
-
-1. Publish to npm.
-2. Add topic `payload-plugin` to the GitHub repository.
-
-Payload docs reference the `payload-plugin` topic for plugin discovery.
+- Payload: `^3.76.1`
+- React: `^19`
+- Next.js (via `@payloadcms/next` peer range):
+  `>=15.2.9 <15.3.0 || >=15.3.9 <15.4.0 || >=15.4.11 <15.5.0 || >=16.2.0-canary.10 <17.0.0`
 
 ## Development
 
 ```bash
+pnpm typecheck
 pnpm test
 ```
+
+## Contributing
+
+Contributions are welcome.
+
+1. Fork the repository and create a branch from `main`.
+2. Make focused changes with tests.
+3. Run:
+
+```bash
+pnpm install
+pnpm typecheck
+pnpm test
+```
+
+4. Open a PR with clear context and before/after behavior.
+
+For full contribution details, see [`CONTRIBUTING.md`](./CONTRIBUTING.md).
+
+## Releases, Tags, and npm Publish
+
+This project uses git tags and npm versions together.
+
+1. Merge PRs to `main`.
+2. Bump version:
+
+```bash
+pnpm version patch
+# or: pnpm version minor
+# or: pnpm version major
+```
+
+3. Publish package:
+
+```bash
+pnpm publish --access public
+```
+
+4. Create and push git tag:
+
+```bash
+git tag -a vX.Y.Z -m "Release vX.Y.Z"
+git push origin vX.Y.Z
+```
+
+## Community Discovery
+
+- Add GitHub topic: `payload-plugin`
+- Keep npm package up to date
+- Add release notes for each version
