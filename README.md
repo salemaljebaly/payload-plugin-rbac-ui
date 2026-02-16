@@ -77,54 +77,84 @@ export default buildConfig({
 })
 ```
 
-### 3. Implement Authorization
+### 3. Link Users to Roles
 
-**Important:** This plugin only provides the UI and validation for permissions. You must implement authorization logic in your collections and globals:
+Add a roles field to your Users collection:
+
+```ts
+// src/collections/Users.ts
+import { CollectionConfig } from 'payload'
+
+export const Users: CollectionConfig = {
+  slug: 'users',
+  auth: true,
+  fields: [
+    {
+      name: 'name',
+      type: 'text',
+    },
+    {
+      name: 'roles',
+      type: 'relationship',
+      relationTo: 'roles',
+      hasMany: true,
+      saveToJWT: true,  // Important: makes roles available in req.user
+    },
+  ],
+}
+```
+
+### 4. Implement Authorization
+
+**Important:** This plugin only provides the UI and validation for permissions. You must implement authorization logic in your collections and globals.
+
+**Create a permission helper:**
+
+```ts
+// src/access/checkPermission.ts
+import type { PayloadRequest } from 'payload'
+
+export const hasPermission = (req: PayloadRequest, permission: string): boolean => {
+  const user = req.user
+  if (!user || !user.roles) return false
+
+  const roles = Array.isArray(user.roles) ? user.roles : [user.roles]
+
+  // Check if any role has the required permission
+  for (const role of roles) {
+    if (typeof role === 'object' && role !== null && 'permissions' in role) {
+      const permissions = role.permissions
+      if (Array.isArray(permissions) && permissions.includes(permission)) {
+        return true
+      }
+    }
+  }
+  return false
+}
+
+export const checkPermission = (permission: string) => {
+  return ({ req }: { req: PayloadRequest }): boolean => {
+    return hasPermission(req, permission)
+  }
+}
+```
+
+**Use it in your collections:**
 
 ```ts
 // src/collections/Posts.ts
 import { CollectionConfig } from 'payload'
+import { checkPermission } from '../access/checkPermission'
 
 export const Posts: CollectionConfig = {
   slug: 'posts',
   access: {
-    create: ({ req }) => {
-      // Check if user's role has the 'Create:Post' permission
-      const permissions = req.user?.role?.permissions || []
-      return permissions.includes('Create:Post')
-    },
-    read: ({ req }) => {
-      const permissions = req.user?.role?.permissions || []
-      return permissions.includes('Read:Post')
-    },
-    update: ({ req }) => {
-      const permissions = req.user?.role?.permissions || []
-      return permissions.includes('Update:Post')
-    },
-    delete: ({ req }) => {
-      const permissions = req.user?.role?.permissions || []
-      return permissions.includes('Delete:Post')
-    },
+    create: checkPermission('Create:Post'),
+    read: checkPermission('Read:Post'),
+    update: checkPermission('Update:Post'),
+    delete: checkPermission('Delete:Post'),
   },
   fields: [/* your fields */],
-}
-```
-
-**Helper function** (optional):
-
-```ts
-// src/lib/hasPermission.ts
-export const hasPermission = (req: PayloadRequest, permission: string): boolean => {
-  const permissions = req.user?.role?.permissions || []
-  return permissions.includes(permission)
-}
-
-// Usage in collection:
-import { hasPermission } from '@/lib/hasPermission'
-
-access: {
-  create: ({ req }) => hasPermission(req, 'Create:Post'),
-  read: ({ req }) => hasPermission(req, 'Read:Post'),
 }
 ```
 
