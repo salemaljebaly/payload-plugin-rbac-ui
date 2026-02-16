@@ -1,5 +1,3 @@
-'use client'
-
 import React, { useCallback, useMemo } from 'react'
 import type { JSONFieldClientComponent } from 'payload'
 import { useField } from '@payloadcms/ui'
