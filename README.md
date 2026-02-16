@@ -23,22 +23,109 @@ RBAC permissions matrix UI for Payload CMS.
 pnpm add @salemaljebaly/payload-plugin-rbac-ui
 ```
 
-## Quick Start (Auto-Discover)
+## Setup Guide
+
+### 1. Create a Roles Collection
+
+First, create a Roles collection in your Payload config:
 
 ```ts
+// src/collections/Roles.ts
+import { CollectionConfig } from 'payload'
+
+export const Roles: CollectionConfig = {
+  slug: 'roles',
+  admin: {
+    useAsTitle: 'name',
+  },
+  fields: [
+    {
+      name: 'name',
+      type: 'text',
+      required: true,
+      unique: true,
+    },
+    {
+      name: 'description',
+      type: 'textarea',
+    },
+    // The 'permissions' field will be added automatically by the plugin
+  ],
+}
+```
+
+### 2. Add the Plugin
+
+Add the plugin to your Payload config with auto-discovery enabled:
+
+```ts
+// src/payload.config.ts
 import { buildConfig } from 'payload'
 import { rbacUIPlugin } from '@salemaljebaly/payload-plugin-rbac-ui'
+import { Roles } from './collections/Roles'
+import { Users } from './collections/Users'
 
 export default buildConfig({
-  collections: [/* users, roles, posts, etc */],
+  collections: [Users, Roles, /* other collections */],
   globals: [/* settings, etc */],
   plugins: [
     rbacUIPlugin({
       rolesCollectionSlug: 'roles',
-      autoDiscover: true,
+      autoDiscover: true, // Automatically discover permissions from collections & globals
     }),
   ],
 })
+```
+
+### 3. Implement Authorization
+
+**Important:** This plugin only provides the UI and validation for permissions. You must implement authorization logic in your collections and globals:
+
+```ts
+// src/collections/Posts.ts
+import { CollectionConfig } from 'payload'
+
+export const Posts: CollectionConfig = {
+  slug: 'posts',
+  access: {
+    create: ({ req }) => {
+      // Check if user's role has the 'Create:Post' permission
+      const permissions = req.user?.role?.permissions || []
+      return permissions.includes('Create:Post')
+    },
+    read: ({ req }) => {
+      const permissions = req.user?.role?.permissions || []
+      return permissions.includes('Read:Post')
+    },
+    update: ({ req }) => {
+      const permissions = req.user?.role?.permissions || []
+      return permissions.includes('Update:Post')
+    },
+    delete: ({ req }) => {
+      const permissions = req.user?.role?.permissions || []
+      return permissions.includes('Delete:Post')
+    },
+  },
+  fields: [/* your fields */],
+}
+```
+
+**Helper function** (optional):
+
+```ts
+// src/lib/hasPermission.ts
+export const hasPermission = (req: PayloadRequest, permission: string): boolean => {
+  const permissions = req.user?.role?.permissions || []
+  return permissions.includes(permission)
+}
+
+// Usage in collection:
+import { hasPermission } from '@/lib/hasPermission'
+
+access: {
+  create: ({ req }) => hasPermission(req, 'Create:Post'),
+  read: ({ req }) => hasPermission(req, 'Read:Post'),
+}
 ```
 
 ## Hybrid Example (Auto + Custom)
@@ -100,7 +187,19 @@ Your app still handles **authorization checks** (for example with `hasPermission
 ## Development
 
 ```bash
+# Install dependencies
+pnpm install
+
+# Build the plugin
+pnpm build
+
+# Watch mode for development
+pnpm dev
+
+# Type checking
 pnpm typecheck
+
+# Run tests
 pnpm test
 ```
 
@@ -114,6 +213,7 @@ Contributions are welcome.
 
 ```bash
 pnpm install
+pnpm build
 pnpm typecheck
 pnpm test
 ```

@@ -5,15 +5,20 @@
   "license": "MIT",
   "type": "module",
   "packageManager": "pnpm@9.15.0",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./client": "./src/components/PermissionsMatrixField.tsx",
-    "./types": "./src/types.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "import": "./dist/client.js"
+    }
   },
   "files": [
-    "src",
+    "dist",
     "README.md",
     "LICENSE"
   ],
@@ -23,18 +28,21 @@
     "react": "^19.0.0"
   },
   "devDependencies": {
+    "@payloadcms/ui": "3.76.1",
     "@types/node": "25.2.3",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
-    "@payloadcms/ui": "3.76.1",
     "payload": "3.76.1",
+    "tsup": "^8.5.1",
     "typescript": "5.9.3",
     "vitest": "4.0.18"
   },
   "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
     "test": "vitest run --config ./vitest.config.mts",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "pnpm typecheck && pnpm test"
+    "prepublishOnly": "pnpm typecheck && pnpm test && pnpm build"
   },
   "repository": {
     "type": "git",
