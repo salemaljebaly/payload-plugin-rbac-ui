@@ -12,24 +12,84 @@ RBAC permissions matrix UI for Payload CMS. Injects a grouped checkbox UI into y
 
 ```bash
 pnpm add @salemaljebaly/payload-plugin-rbac-ui
+# or
+npm install @salemaljebaly/payload-plugin-rbac-ui
 ```
 
 ## Setup
 
-### 1. Roles collection
+### 1. Access helpers
+
+Create these helpers first — they are used in the collections below.
+
+```ts
+// src/access/index.ts
+import type { Access } from 'payload'
+
+/** Check if user is a super admin (bypasses all permission checks). */
+export function isSuperAdmin(user: any): boolean {
+  return user?.superAdmin === true
+}
+
+/** Check if user has a specific permission in any of their roles. */
+export function hasPermission(user: any, permission: string): boolean {
+  if (!user?.roles) return false
+  const roles = Array.isArray(user.roles) ? user.roles : [user.roles]
+  return roles.some((role: any) => {
+    const permissions = typeof role === 'object' ? role?.permissions : null
+    return Array.isArray(permissions) && permissions.includes(permission)
+  })
+}
+
+/** Use in collection access — super admins always pass, others need the permission. */
+export const checkPermission =
+  (permission: string): Access =>
+  ({ req: { user } }) =>
+    isSuperAdmin(user) || hasPermission(user, permission)
+```
+
+### 2. Users collection
+
+Add a `superAdmin` flag and a `roles` relationship to your Users collection:
+
+```ts
+// src/collections/Users.ts
+fields: [
+  {
+    name: 'superAdmin',
+    type: 'checkbox',
+    defaultValue: false,
+    access: {
+      // Only super admins can grant super admin access
+      update: ({ req: { user } }) => isSuperAdmin(user),
+    },
+    admin: { description: 'Grants full access, bypasses all permission checks.' },
+  },
+  {
+    name: 'roles',
+    type: 'relationship',
+    relationTo: 'roles',
+    hasMany: true,
+    saveToJWT: true, // populates role objects (with permissions) onto req.user
+  },
+]
+```
+
+### 3. Roles collection
 
 ```ts
 // src/collections/Roles.ts
 import type { CollectionConfig } from 'payload'
+import { isSuperAdmin } from '../access'
 
 export const Roles: CollectionConfig = {
   slug: 'roles',
   admin: { useAsTitle: 'name' },
   access: {
-    read: ({ req: { user } }) => !!user, // logged-in users can read (needed for relationship selectors)
-    create: isAdmin,
-    update: isAdmin,
-    delete: isAdmin,
+    read: ({ req: { user } }) => !!user,     // any logged-in user (needed for relationship selectors)
+    create: ({ req: { user } }) => isSuperAdmin(user),
+    update: ({ req: { user } }) => isSuperAdmin(user),
+    delete: ({ req: { user } }) => isSuperAdmin(user),
   },
   fields: [
     { name: 'name', type: 'text', required: true, unique: true },
@@ -39,7 +99,7 @@ export const Roles: CollectionConfig = {
 }
 ```
 
-### 2. Add the plugin
+### 4. Add the plugin
 
 ```ts
 // src/payload.config.ts
@@ -56,56 +116,12 @@ export default buildConfig({
 })
 ```
 
-### 3. Link users to roles
-
-```ts
-// src/collections/Users.ts
-{
-  name: 'roles',
-  type: 'relationship',
-  relationTo: 'roles',
-  hasMany: true,
-  saveToJWT: true, // populates role objects (with permissions) onto req.user — no DB query needed
-}
-```
-
-### 4. Enforce permissions
-
-The plugin handles UI and validation only. Add access control to your collections:
-
-```ts
-// src/access/index.ts
-import type { Access } from 'payload'
-
-export function hasPermission(user: any, permission: string): boolean {
-  if (!user?.roles) return false
-  const roles = Array.isArray(user.roles) ? user.roles : [user.roles]
-  return roles.some((role: any) => {
-    const permissions = typeof role === 'object' ? role?.permissions : null
-    return Array.isArray(permissions) && permissions.includes(permission)
-  })
-}
-
-export const checkPermission =
-  (permission: string): Access =>
-  ({ req: { user } }) =>
-    isAdmin(user) || hasPermission(user, permission)
-
-// Name-based admin check with first-setup fallback (see warning below)
-export function isAdmin(user: any): boolean {
-  if (!user) return false
-  const roles = user.roles
-  if (!roles || (Array.isArray(roles) && roles.length === 0)) return true // first-setup fallback
-  const roleList = Array.isArray(roles) ? roles : [roles]
-  return roleList.some((role: any) => {
-    const name = typeof role === 'object' ? role?.name : role
-    return typeof name === 'string' && name.toLowerCase() === 'administrator'
-  })
-}
-```
+### 5. Enforce permissions on your collections
 
 ```ts
 // src/collections/Posts.ts
+import { checkPermission } from '../access'
+
 access: {
   create: checkPermission('Create:Post'),
   read:   checkPermission('Read:Post'),
@@ -114,25 +130,32 @@ access: {
 }
 ```
 
+### 6. First setup
+
+On first run, mark your admin user as super admin via the Payload local API or a seed script:
+
+```ts
+await payload.update({
+  collection: 'users',
+  id: adminUser.id,
+  data: { superAdmin: true },
+  overrideAccess: true,
+})
+```
+
+> After updating your own user, **log out and back in** so the JWT refreshes with the new data.
+
+---
+
 ### Permission string format
 
-The default formatter produces:
-
-| Type       | Slug            | Permission strings                                        |
-|------------|-----------------|-----------------------------------------------------------|
-| Collection | `posts`         | `Create:Post`, `Read:Post`, `Update:Post`, `Delete:Post`  |
-| Collection | `categories`    | `Create:Category`, `Read:Category`, …                     |
-| Global     | `settings`      | `Read:Global:Setting`, `Update:Global:Setting`            |
+| Type       | Slug         | Generated strings                                        |
+|------------|--------------|----------------------------------------------------------|
+| Collection | `posts`      | `Create:Post`, `Read:Post`, `Update:Post`, `Delete:Post` |
+| Collection | `categories` | `Create:Category`, `Read:Category`, …                    |
+| Global     | `settings`   | `Read:Global:Setting`, `Update:Global:Setting`           |
 
 Rule: `slug → singularize → PascalCase`. Open the Roles admin UI to see the exact strings for your app.
-
-## ⚠️ First-Setup Warning
-
-**Problem:** If you protect your Roles collection with `checkPermission()`, your first admin user has no roles yet — so they can't open the Roles page to create any roles. Circular dependency.
-
-**Solution:** Use `isAdmin()` with a first-setup fallback (shown above). When a logged-in user has zero roles, `isAdmin()` returns `true`. Once they create and assign a role named `Administrator` to themselves, the fallback no longer applies.
-
-Alternatively, seed your roles and assign one to the first user on startup.
 
 ## Hybrid mode (auto + custom)
 
