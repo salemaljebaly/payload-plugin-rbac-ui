@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { Config } from 'payload'
-import { createAutoPermissionGroups, flattenPermissionGroups, validatePermissionArray } from '../src/lib/permissions'
+import {
+  createAutoPermissionGroups,
+  defaultGroupLabelFormatter,
+  flattenPermissionGroups,
+  validatePermissionArray,
+} from '../src/lib/permissions'
 
 describe('permissions utils', () => {
   it('flattens and de-duplicates permission groups', () => {
@@ -35,7 +40,7 @@ describe('permissions utils', () => {
     expect(invalidResult).toContain('Delete:User')
   })
 
-  it('creates auto-discovered permissions with custom formatter', () => {
+  it('creates auto-discovered permissions with custom formatPermission', () => {
     const groups = createAutoPermissionGroups({
       config: {
         collections: [{ slug: 'roles', fields: [] }, { slug: 'visit-records', fields: [] }],
@@ -54,5 +59,28 @@ describe('permissions utils', () => {
       'collection.visit-records.update',
       'collection.visit-records.delete',
     ])
+  })
+
+  it('creates auto-discovered permissions with custom formatGroupLabel', () => {
+    const groups = createAutoPermissionGroups({
+      config: {
+        collections: [{ slug: 'blog-posts', fields: [] }],
+        globals: [{ slug: 'site-config', fields: [] }],
+      } as unknown as Config,
+      rolesCollectionSlug: 'roles',
+      autoDiscover: {
+        formatGroupLabel: ({ slug, source }) =>
+          source === 'global' ? `[G] ${slug}` : `[C] ${slug}`,
+      },
+    })
+
+    expect(groups[0]?.label).toBe('[C] blog-posts')
+    expect(groups[1]?.label).toBe('[G] site-config')
+  })
+
+  it('defaultGroupLabelFormatter singularizes and PascalCases collections', () => {
+    expect(defaultGroupLabelFormatter({ slug: 'posts', source: 'collection' })).toBe('Post')
+    expect(defaultGroupLabelFormatter({ slug: 'categories', source: 'collection' })).toBe('Category')
+    expect(defaultGroupLabelFormatter({ slug: 'site-settings', source: 'global' })).toBe('Global SiteSetting')
   })
 })

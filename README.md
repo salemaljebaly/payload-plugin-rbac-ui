@@ -4,16 +4,7 @@
 [![npm downloads](https://img.shields.io/npm/dm/@salemaljebaly/payload-plugin-rbac-ui)](https://www.npmjs.com/package/@salemaljebaly/payload-plugin-rbac-ui)
 [![license](https://img.shields.io/npm/l/@salemaljebaly/payload-plugin-rbac-ui)](./LICENSE)
 
-RBAC permissions matrix UI for Payload CMS.
-
-## Features
-
-- Role permissions UI with grouped checkboxes.
-- Strict permission value validation.
-- Auto-discovery from Payload collections and globals.
-- Supports hybrid mode (auto-discovery + custom permissions).
-
-## Screenshot
+RBAC permissions matrix UI for Payload CMS. Injects a grouped checkbox UI into your Roles collection and validates saved permissions against an auto-discovered allow-list.
 
 ![Permissions Matrix UI](https://raw.githubusercontent.com/salemaljebaly/payload-plugin-rbac-ui/main/docs/images/permissions-matrix.png)
 
@@ -23,109 +14,73 @@ RBAC permissions matrix UI for Payload CMS.
 pnpm add @salemaljebaly/payload-plugin-rbac-ui
 ```
 
-## Setup Guide
+## Setup
 
-### 1. Create a Roles Collection
-
-First, create a Roles collection in your Payload config:
+### 1. Roles collection
 
 ```ts
 // src/collections/Roles.ts
-import { CollectionConfig } from 'payload'
+import type { CollectionConfig } from 'payload'
 
 export const Roles: CollectionConfig = {
   slug: 'roles',
-  admin: {
-    useAsTitle: 'name',
+  admin: { useAsTitle: 'name' },
+  access: {
+    read: ({ req: { user } }) => !!user, // logged-in users can read (needed for relationship selectors)
+    create: isAdmin,
+    update: isAdmin,
+    delete: isAdmin,
   },
   fields: [
-    {
-      name: 'name',
-      type: 'text',
-      required: true,
-      unique: true,
-    },
-    {
-      name: 'description',
-      type: 'textarea',
-    },
-    // The 'permissions' field will be added automatically by the plugin
+    { name: 'name', type: 'text', required: true, unique: true },
+    { name: 'description', type: 'textarea' },
+    // 'permissions' field is injected automatically by the plugin
   ],
 }
 ```
 
-### 2. Add the Plugin
-
-Add the plugin to your Payload config with auto-discovery enabled:
+### 2. Add the plugin
 
 ```ts
 // src/payload.config.ts
-import { buildConfig } from 'payload'
 import { rbacUIPlugin } from '@salemaljebaly/payload-plugin-rbac-ui'
-import { Roles } from './collections/Roles'
-import { Users } from './collections/Users'
 
 export default buildConfig({
-  collections: [Users, Roles, /* other collections */],
-  globals: [/* settings, etc */],
+  collections: [Users, Roles, Posts /* ... */],
   plugins: [
     rbacUIPlugin({
       rolesCollectionSlug: 'roles',
-      autoDiscover: true, // Automatically discover permissions from collections & globals
+      autoDiscover: true,
     }),
   ],
 })
 ```
 
-### 3. Link Users to Roles
-
-Add a roles field to your Users collection:
+### 3. Link users to roles
 
 ```ts
 // src/collections/Users.ts
-import { CollectionConfig } from 'payload'
-
-export const Users: CollectionConfig = {
-  slug: 'users',
-  auth: true,
-  fields: [
-    {
-      name: 'name',
-      type: 'text',
-    },
-    {
-      name: 'roles',
-      type: 'relationship',
-      relationTo: 'roles',
-      hasMany: true,
-      saveToJWT: true,  // Important: makes roles available in req.user
-    },
-  ],
+{
+  name: 'roles',
+  type: 'relationship',
+  relationTo: 'roles',
+  hasMany: true,
+  saveToJWT: true, // populates role objects (with permissions) onto req.user — no DB query needed
 }
 ```
 
-### 4. Implement Authorization
+### 4. Enforce permissions
 
-**Important:** This plugin only provides the UI and validation for permissions. You must implement authorization logic in your collections and globals.
-
-**Create a permission helper:**
+The plugin handles UI and validation only. Add access control to your collections:
 
 ```ts
-// src/access/checkPermission.ts
+// src/access/index.ts
 import type { Access } from 'payload'
 
-/**
- * Check if the current user has a specific permission.
- *
- * Roles must have `saveToJWT: true` on the relationship field in Users —
- * this populates each role object (with its permissions array) directly
- * onto req.user, so no extra DB query is needed here.
- */
 export function hasPermission(user: any, permission: string): boolean {
   if (!user?.roles) return false
   const roles = Array.isArray(user.roles) ? user.roles : [user.roles]
   return roles.some((role: any) => {
-    // Roles come as populated objects from the JWT (not IDs)
     const permissions = typeof role === 'object' ? role?.permissions : null
     return Array.isArray(permissions) && permissions.includes(permission)
   })
@@ -134,156 +89,123 @@ export function hasPermission(user: any, permission: string): boolean {
 export const checkPermission =
   (permission: string): Access =>
   ({ req: { user } }) =>
-    hasPermission(user, permission)
-```
+    isAdmin(user) || hasPermission(user, permission)
 
-**Use it in your collections:**
-
-```ts
-// src/collections/Posts.ts
-import { CollectionConfig } from 'payload'
-import { checkPermission } from '../access/checkPermission'
-
-export const Posts: CollectionConfig = {
-  slug: 'posts',
-  access: {
-    create: checkPermission('Create:Post'),
-    read:   checkPermission('Read:Post'),
-    update: checkPermission('Update:Post'),
-    delete: checkPermission('Delete:Post'),
-  },
-  fields: [/* your fields */],
+// Name-based admin check with first-setup fallback (see warning below)
+export function isAdmin(user: any): boolean {
+  if (!user) return false
+  const roles = user.roles
+  if (!roles || (Array.isArray(roles) && roles.length === 0)) return true // first-setup fallback
+  const roleList = Array.isArray(roles) ? roles : [roles]
+  return roleList.some((role: any) => {
+    const name = typeof role === 'object' ? role?.name : role
+    return typeof name === 'string' && name.toLowerCase() === 'administrator'
+  })
 }
 ```
 
-> **Note:** Permission strings must exactly match what the plugin generates.
-> With the default `autoDiscover: true`, collection slugs are singularized and
-> PascalCased: `posts` → `Post`, `categories` → `Category`.
-> Globals use the prefix `Global:`: `settings` → `Read:Global:Setting`.
-> Use the Roles admin UI to see the exact strings generated for your app.
+```ts
+// src/collections/Posts.ts
+access: {
+  create: checkPermission('Create:Post'),
+  read:   checkPermission('Read:Post'),
+  update: checkPermission('Update:Post'),
+  delete: checkPermission('Delete:Post'),
+}
+```
 
-## Hybrid Example (Auto + Custom)
+### Permission string format
+
+The default formatter produces:
+
+| Type       | Slug            | Permission strings                                        |
+|------------|-----------------|-----------------------------------------------------------|
+| Collection | `posts`         | `Create:Post`, `Read:Post`, `Update:Post`, `Delete:Post`  |
+| Collection | `categories`    | `Create:Category`, `Read:Category`, …                     |
+| Global     | `settings`      | `Read:Global:Setting`, `Update:Global:Setting`            |
+
+Rule: `slug → singularize → PascalCase`. Open the Roles admin UI to see the exact strings for your app.
+
+## ⚠️ First-Setup Warning
+
+**Problem:** If you protect your Roles collection with `checkPermission()`, your first admin user has no roles yet — so they can't open the Roles page to create any roles. Circular dependency.
+
+**Solution:** Use `isAdmin()` with a first-setup fallback (shown above). When a logged-in user has zero roles, `isAdmin()` returns `true`. Once they create and assign a role named `Administrator` to themselves, the fallback no longer applies.
+
+Alternatively, seed your roles and assign one to the first user on startup.
+
+## Hybrid mode (auto + custom)
 
 ```ts
-import { rbacUIPlugin } from '@salemaljebaly/payload-plugin-rbac-ui'
-
 rbacUIPlugin({
   autoDiscover: true,
   permissionGroups: [
     {
       label: 'Post',
       permissions: [
-        {
-          action: 'Publish',
-          description: 'Publish posts',
-          permission: 'Publish:Post',
-        },
+        { action: 'Publish', description: 'Publish posts', permission: 'Publish:Post' },
       ],
     },
   ],
 })
 ```
 
-## Access Enforcement Note
-
-This plugin handles **UI + validation** for role permissions.
-
-Your app still handles **authorization checks** (for example with `hasPermission('Read:Post')` in collection/global access).
+Auto-discovered and manual groups with the same label are merged.
 
 ## Options
 
-- `rolesCollectionSlug` (default: `roles`)
-- `permissionsFieldName` (default: `permissions`)
-- `permissionGroups` (optional manual groups)
-- `autoDiscover` (`true` or config object)
-- `rolesFieldDescription`
-- `ensurePermissionsField` (default: `true`)
-- `customFieldPath`
-- `onConfigureRolesCollection`
+| Option | Default | Description |
+|--------|---------|-------------|
+| `rolesCollectionSlug` | `'roles'` | Slug of your roles collection |
+| `permissionsFieldName` | `'permissions'` | Field name to inject/patch |
+| `permissionGroups` | `[]` | Manual permission groups |
+| `autoDiscover` | `false` | `true` or config object (see below) |
+| `rolesFieldDescription` | — | Description shown under the field |
+| `ensurePermissionsField` | `true` | Auto-add field if missing. Set `false` to skip |
+| `customFieldPath` | — | Override the React component path |
+| `onConfigureRolesCollection` | — | Callback to modify the final collection config |
 
-`autoDiscover` supports:
+### `autoDiscover` options
 
-- `collections` (default: `true`)
-- `globals` (default: `true`)
-- `collectionActions` (default: `['Create', 'Read', 'Update', 'Delete']`)
-- `globalActions` (default: `['Read', 'Update']`)
-- `includeRolesCollection` (default: `true`) — when `false`, the roles collection itself is excluded from auto-discovery. **Important:** this means permissions like `Create:Role` will not appear in the allowed values list. Do not include them in seed data or they will fail validation.
-- `formatPermission(context)` — `context: { action: string, slug: string, source: 'collection' | 'global' }` → returns `string`. Default produces `Action:PascalCaseSingular` for collections and `Action:Global:PascalCaseSingular` for globals.
-- `formatGroupLabel(context)` — `context: { slug: string, source: 'collection' | 'global' }` → returns `string`. Default produces `PascalCaseSingular` for collections and `Global:PascalCaseSingular` for globals.
+| Option | Default | Description |
+|--------|---------|-------------|
+| `collections` | `true` | Discover from collections |
+| `globals` | `true` | Discover from globals |
+| `collectionActions` | `['Create','Read','Update','Delete']` | Actions per collection |
+| `globalActions` | `['Read','Update']` | Actions per global |
+| `includeRolesCollection` | `true` | Include the roles collection itself. Set `false` to exclude — permissions like `Create:Role` won't be in the allow-list, so don't use them in seed data |
+| `formatPermission(ctx)` | — | `ctx: { action: string, slug: string, source: 'collection' \| 'global' }` → `string` |
+| `formatGroupLabel(ctx)` | — | `ctx: { slug: string, source: 'collection' \| 'global' }` → `string` |
 
 ## Compatibility
 
 - Payload: `^3.76.1`
 - React: `^19`
-- Next.js (via `@payloadcms/next` peer range):
-  `>=15.2.9 <15.3.0 || >=15.3.9 <15.4.0 || >=15.4.11 <15.5.0 || >=16.2.0-canary.10 <17.0.0`
+- Next.js: `>=15.2.9 <15.3.0 || >=15.3.9 <15.4.0 || >=15.4.11 <15.5.0 || >=16.2.0-canary.10 <17.0.0`
 
 ## Development
 
 ```bash
-# Install dependencies
 pnpm install
-
-# Build the plugin
 pnpm build
-
-# Watch mode for development
-pnpm dev
-
-# Type checking
 pnpm typecheck
-
-# Run tests
 pnpm test
 ```
 
 ## Contributing
 
-Contributions are welcome.
-
-1. Fork the repository and create a branch from `main`.
+1. Fork and branch from `main`.
 2. Make focused changes with tests.
-3. Run:
+3. Run `pnpm build && pnpm typecheck && pnpm test`.
+4. Open a PR with clear before/after context.
+
+See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for details.
+
+## Releasing
 
 ```bash
-pnpm install
-pnpm build
-pnpm typecheck
-pnpm test
-```
-
-4. Open a PR with clear context and before/after behavior.
-
-For full contribution details, see [`CONTRIBUTING.md`](./CONTRIBUTING.md).
-
-## Releases, Tags, and npm Publish
-
-This project uses git tags and npm versions together.
-
-1. Merge PRs to `main`.
-2. Bump version:
-
-```bash
-pnpm version patch
-# or: pnpm version minor
-# or: pnpm version major
-```
-
-3. Publish package:
-
-```bash
+pnpm version patch   # or minor / major
 pnpm publish --access public
-```
-
-4. Create and push git tag:
-
-```bash
 git tag -a vX.Y.Z -m "Release vX.Y.Z"
 git push origin vX.Y.Z
 ```
-
-## Community Discovery
-
-- Add GitHub topic: `payload-plugin`
-- Keep npm package up to date
-- Add release notes for each version
