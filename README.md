@@ -112,31 +112,29 @@ export const Users: CollectionConfig = {
 
 ```ts
 // src/access/checkPermission.ts
-import type { PayloadRequest } from 'payload'
+import type { Access } from 'payload'
 
-export const hasPermission = (req: PayloadRequest, permission: string): boolean => {
-  const user = req.user
-  if (!user || !user.roles) return false
-
+/**
+ * Check if the current user has a specific permission.
+ *
+ * Roles must have `saveToJWT: true` on the relationship field in Users —
+ * this populates each role object (with its permissions array) directly
+ * onto req.user, so no extra DB query is needed here.
+ */
+export function hasPermission(user: any, permission: string): boolean {
+  if (!user?.roles) return false
   const roles = Array.isArray(user.roles) ? user.roles : [user.roles]
-
-  // Check if any role has the required permission
-  for (const role of roles) {
-    if (typeof role === 'object' && role !== null && 'permissions' in role) {
-      const permissions = role.permissions
-      if (Array.isArray(permissions) && permissions.includes(permission)) {
-        return true
-      }
-    }
-  }
-  return false
+  return roles.some((role: any) => {
+    // Roles come as populated objects from the JWT (not IDs)
+    const permissions = typeof role === 'object' ? role?.permissions : null
+    return Array.isArray(permissions) && permissions.includes(permission)
+  })
 }
 
-export const checkPermission = (permission: string) => {
-  return ({ req }: { req: PayloadRequest }): boolean => {
-    return hasPermission(req, permission)
-  }
-}
+export const checkPermission =
+  (permission: string): Access =>
+  ({ req: { user } }) =>
+    hasPermission(user, permission)
 ```
 
 **Use it in your collections:**
@@ -150,13 +148,19 @@ export const Posts: CollectionConfig = {
   slug: 'posts',
   access: {
     create: checkPermission('Create:Post'),
-    read: checkPermission('Read:Post'),
+    read:   checkPermission('Read:Post'),
     update: checkPermission('Update:Post'),
     delete: checkPermission('Delete:Post'),
   },
   fields: [/* your fields */],
 }
 ```
+
+> **Note:** Permission strings must exactly match what the plugin generates.
+> With the default `autoDiscover: true`, collection slugs are singularized and
+> PascalCased: `posts` → `Post`, `categories` → `Category`.
+> Globals use the prefix `Global:`: `settings` → `Read:Global:Setting`.
+> Use the Roles admin UI to see the exact strings generated for your app.
 
 ## Hybrid Example (Auto + Custom)
 
@@ -203,9 +207,9 @@ Your app still handles **authorization checks** (for example with `hasPermission
 - `globals` (default: `true`)
 - `collectionActions` (default: `['Create', 'Read', 'Update', 'Delete']`)
 - `globalActions` (default: `['Read', 'Update']`)
-- `includeRolesCollection` (default: `true`)
-- `formatPermission(context)`
-- `formatGroupLabel(context)`
+- `includeRolesCollection` (default: `true`) — when `false`, the roles collection itself is excluded from auto-discovery. **Important:** this means permissions like `Create:Role` will not appear in the allowed values list. Do not include them in seed data or they will fail validation.
+- `formatPermission(context)` — `context: { action: string, slug: string, source: 'collection' | 'global' }` → returns `string`. Default produces `Action:PascalCaseSingular` for collections and `Action:Global:PascalCaseSingular` for globals.
+- `formatGroupLabel(context)` — `context: { slug: string, source: 'collection' | 'global' }` → returns `string`. Default produces `PascalCaseSingular` for collections and `Global:PascalCaseSingular` for globals.
 
 ## Compatibility
 
