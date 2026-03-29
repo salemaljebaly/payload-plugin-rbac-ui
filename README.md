@@ -116,7 +116,18 @@ export default buildConfig({
 })
 ```
 
-### 5. Enforce permissions on your collections
+### 5. Generate the import map
+
+After adding the plugin, run this once so Payload registers the permissions UI component:
+
+```bash
+pnpm payload generate:importmap
+# or: npx payload generate:importmap
+```
+
+> Re-run this whenever you add or remove Payload plugins with custom UI.
+
+### 6. Enforce permissions on your collections
 
 ```ts
 // src/collections/Posts.ts
@@ -130,20 +141,35 @@ access: {
 }
 ```
 
-### 6. First setup
+### 7. First setup
 
-On first run, mark your admin user as super admin via the Payload local API or a seed script:
+No one has `superAdmin: true` yet, so no one can access the Roles collection. Bootstrap by adding a temporary seed route:
 
 ```ts
-await payload.update({
-  collection: 'users',
-  id: adminUser.id,
-  data: { superAdmin: true },
-  overrideAccess: true,
-})
+// src/app/seed/route.ts  — REMOVE IN PRODUCTION
+import configPromise from '@payload-config'
+import { getPayload } from 'payload'
+
+export const GET = async () => {
+  const payload = await getPayload({ config: configPromise })
+  const { docs } = await payload.find({ collection: 'users', limit: 1, sort: 'createdAt' })
+  if (!docs[0]) return Response.json({ error: 'Create an account first.' }, { status: 404 })
+  await payload.update({
+    collection: 'users',
+    id: docs[0].id,
+    data: { superAdmin: true } as any,
+    overrideAccess: true,
+  })
+  return Response.json({ message: 'Done! Log out and back in.', email: docs[0].email })
+}
 ```
 
-> After updating your own user, **log out and back in** so the JWT refreshes with the new data.
+1. Start your dev server, create your account at `/admin/create-first-user`
+2. Visit `http://localhost:3000/seed` — your account is now `superAdmin`
+3. **Log out and back in** so the JWT refreshes
+4. Delete the seed route before deploying
+
+> The **re-login** step is required — the `superAdmin` flag is read from the JWT on each request.
 
 ---
 

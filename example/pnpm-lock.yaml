@@ -21,8 +21,8 @@ importers:
         specifier: 3.80.0
         version: 3.80.0(@types/react@19.2.14)(monaco-editor@0.55.1)(next@16.2.1(@babel/core@7.29.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(sass@1.77.4))(payload@3.80.0(graphql@16.13.2)(typescript@5.7.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.7.3)
       '@salemaljebaly/payload-plugin-rbac-ui':
-        specifier: link:..
-        version: link:..
+        specifier: ^0.4.0
+        version: 0.4.0(@payloadcms/ui@3.80.0(@types/react@19.2.14)(monaco-editor@0.55.1)(next@16.2.1(@babel/core@7.29.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(sass@1.77.4))(payload@3.80.0(graphql@16.13.2)(typescript@5.7.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.7.3))(payload@3.80.0(graphql@16.13.2)(typescript@5.7.3))(react@19.2.4)
       cross-env:
         specifier: ^7.0.3
         version: 7.0.3
@@ -1551,6 +1551,13 @@ packages:
 
   '@rtsao/scc@1.1.0':
     resolution: {integrity: sha512-zt6OdqaDoOnJ1ZYsCYGt9YmWzDXl4vQdKTyJev62gFhRGKdx7mcT54V9KIjg+d2wi9EXsPvAPKe7i7WjfVWB8g==}
+
+  '@salemaljebaly/payload-plugin-rbac-ui@0.4.0':
+    resolution: {integrity: sha512-6302XOBmBJK/7kbT5IG1wDv1hCUspEWOoqBS4Nzu264yu1jF/7i5ImYN/5sTsHM8EpO5vUHuX/SNKHN6nel1xw==}
+    peerDependencies:
+      '@payloadcms/ui': ^3.76.1
+      payload: ^3.76.1
+      react: ^19.0.0
 
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
@@ -5608,6 +5615,12 @@ snapshots:
     optional: true
 
   '@rtsao/scc@1.1.0': {}
+
+  '@salemaljebaly/payload-plugin-rbac-ui@0.4.0(@payloadcms/ui@3.80.0(@types/react@19.2.14)(monaco-editor@0.55.1)(next@16.2.1(@babel/core@7.29.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(sass@1.77.4))(payload@3.80.0(graphql@16.13.2)(typescript@5.7.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.7.3))(payload@3.80.0(graphql@16.13.2)(typescript@5.7.3))(react@19.2.4)':
+    dependencies:
+      '@payloadcms/ui': 3.80.0(@types/react@19.2.14)(monaco-editor@0.55.1)(next@16.2.1(@babel/core@7.29.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(sass@1.77.4))(payload@3.80.0(graphql@16.13.2)(typescript@5.7.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.7.3)
+      payload: 3.80.0(graphql@16.13.2)(typescript@5.7.3)
+      react: 19.2.4
 
   '@standard-schema/spec@1.1.0': {}
 
