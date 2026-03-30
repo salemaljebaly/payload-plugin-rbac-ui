@@ -70,7 +70,7 @@ fields: [
     type: 'relationship',
     relationTo: 'roles',
     hasMany: true,
-    saveToJWT: true, // populates role objects (with permissions) onto req.user
+    saveToJWT: true, // Required — without this, hasPermission() always returns false
   },
 ]
 ```
@@ -130,6 +130,8 @@ pnpm payload generate:importmap
 ### 6. Enforce permissions on your collections
 
 > **The plugin does not protect your collections automatically.** You must add `checkPermission` (or `isSuperAdmin`) to every collection you want to gate. Any collection without a custom `access` rule remains visible and accessible to all authenticated users.
+>
+> **Not sure what string to pass?** Complete the first setup (step 7), then open any Role in the admin UI — all generated permission strings are listed there.
 
 Apply to every collection — including Media:
 
