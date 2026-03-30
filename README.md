@@ -86,7 +86,7 @@ export const Roles: CollectionConfig = {
   slug: 'roles',
   admin: { useAsTitle: 'name' },
   access: {
-    read: ({ req: { user } }) => !!user,     // any logged-in user (needed for relationship selectors)
+    read:   ({ req: { user } }) => isSuperAdmin(user),
     create: ({ req: { user } }) => isSuperAdmin(user),
     update: ({ req: { user } }) => isSuperAdmin(user),
     delete: ({ req: { user } }) => isSuperAdmin(user),
@@ -128,6 +128,10 @@ pnpm payload generate:importmap
 > Re-run this whenever you add or remove Payload plugins with custom UI.
 
 ### 6. Enforce permissions on your collections
+
+> **The plugin does not protect your collections automatically.** You must add `checkPermission` (or `isSuperAdmin`) to every collection you want to gate. Any collection without a custom `access` rule remains visible and accessible to all authenticated users.
+
+Apply to every collection — including Media:
 
 ```ts
 // src/collections/Posts.ts

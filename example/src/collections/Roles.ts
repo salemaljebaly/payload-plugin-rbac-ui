@@ -5,7 +5,7 @@ export const Roles: CollectionConfig = {
   slug: 'roles',
   admin: { useAsTitle: 'name' },
   access: {
-    read: ({ req: { user } }) => !!user,
+    read: ({ req: { user } }) => isSuperAdmin(user),
     create: ({ req: { user } }) => isSuperAdmin(user),
     update: ({ req: { user } }) => isSuperAdmin(user),
     delete: ({ req: { user } }) => isSuperAdmin(user),
