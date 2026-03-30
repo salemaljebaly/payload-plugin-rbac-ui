@@ -28,11 +28,11 @@
     "react": "^19.0.0"
   },
   "devDependencies": {
-    "@payloadcms/ui": "3.76.1",
+    "@payloadcms/ui": "3.80.0",
     "@types/node": "25.2.3",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
-    "payload": "3.76.1",
+    "payload": "3.80.0",
     "tsup": "^8.5.1",
     "typescript": "5.9.3",
     "vitest": "4.0.18"
@@ -42,7 +42,8 @@
     "dev": "tsup --watch",
     "test": "vitest run --config ./vitest.config.mts",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "pnpm typecheck && pnpm test && pnpm build"
+    "prepublishOnly": "pnpm typecheck && pnpm test && pnpm build",
+    "example:install-local": "pnpm build && pnpm pack --pack-destination /tmp && cd example && pnpm add /tmp/salemaljebaly-payload-plugin-rbac-ui-$(node -p \"require('./package.json').version\").tgz"
   },
   "repository": {
     "type": "git",

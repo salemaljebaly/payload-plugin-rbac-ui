@@ -128,4 +128,68 @@ describe('rbacUIPlugin', () => {
     expect(permissions).toContain('Delete:Post')
     expect(permissions).toContain('Publish:Post')
   })
+
+  it('uses a custom permissionsFieldName', async () => {
+    const plugin = rbacUIPlugin({
+      permissionGroups,
+      permissionsFieldName: 'access',
+    })
+
+    const config = (await plugin({
+      collections: [
+        { slug: 'roles', fields: [{ name: 'access', type: 'json' }] },
+      ],
+    } as unknown as Config)) as Config
+
+    const rolesCollection = config.collections?.find((c) => c.slug === 'roles')
+    const accessField = rolesCollection?.fields?.find(
+      (field) => 'name' in field && field.name === 'access',
+    )
+
+    expect(accessField).toBeDefined()
+    expect((accessField as { admin?: { components?: { Field?: string } } }).admin?.components?.Field).toBe(
+      '@salemaljebaly/payload-plugin-rbac-ui/client#PermissionsMatrixField',
+    )
+  })
+
+  it('skips field injection when ensurePermissionsField is false and field is absent', async () => {
+    const plugin = rbacUIPlugin({
+      permissionGroups,
+      ensurePermissionsField: false,
+    })
+
+    const config = (await plugin({
+      collections: [
+        { slug: 'roles', fields: [] }, // no permissions field
+      ],
+    } as unknown as Config)) as Config
+
+    const rolesCollection = config.collections?.find((c) => c.slug === 'roles')
+    const permissionsField = rolesCollection?.fields?.find(
+      (field) => 'name' in field && field.name === 'permissions',
+    )
+
+    expect(permissionsField).toBeUndefined()
+  })
+
+  it('calls onConfigureRolesCollection with the configured collection', async () => {
+    let received: unknown = null
+
+    const plugin = rbacUIPlugin({
+      permissionGroups,
+      onConfigureRolesCollection: (collection) => {
+        received = collection
+        return collection
+      },
+    })
+
+    await plugin({
+      collections: [
+        { slug: 'roles', fields: [{ name: 'permissions', type: 'json' }] },
+      ],
+    } as unknown as Config)
+
+    expect(received).not.toBeNull()
+    expect((received as { slug: string }).slug).toBe('roles')
+  })
 })
